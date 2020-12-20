@@ -1,2 +1,4 @@
 # Lox-Interpreter
-Working through language with a 'toy' language interpreter in Java
+Specifications in [Crafting Interpreters](https://craftinginterpreters.com/)
+
+This is my implementation in Java. I hope to write this in rust in the near future.     
