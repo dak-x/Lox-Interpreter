@@ -3,9 +3,59 @@ package lox;
 import lox.Stmt.Expression;
 import lox.Stmt.Print;
 import java.util.List;
+import java.util.ArrayList;
 
 class Interpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
-    private Environment environment = new Environment();
+    final Environment globals = new Environment();
+    private Environment environment = globals;
+
+    Interpreter() {
+        globals.define("clock", new LoxCallable() {
+            @Override
+            public int arity() {
+                return 0;
+            }
+
+            @Override
+            public Object call(Interpreter interpreter, List<Object> arguements) {
+                return (double) System.currentTimeMillis() / 1000.0;
+            }
+
+            @Override
+            public String toString() {
+                return "<native fn>";
+            }
+        });
+    }
+
+    @Override 
+    public Void visitFunctionStmt(Stmt.Function stmt){
+        LoxFunction function = new LoxFunction(stmt);
+        environment.define(stmt.name.lexeme, function);
+        return null;
+    }
+
+    @Override
+    public Object visitCallExpr(Expr.Call expr) {
+        Object calle = evaluate(expr.calle);
+
+        List<Object> arguements = new ArrayList<>();
+        for (Expr arguement : expr.arguements) {
+            arguements.add(evaluate(arguement));
+        }
+        if (!(calle instanceof LoxCallable)) {
+            throw new RuntimeError(expr.paren, "Can only call functions and classes");
+        }
+
+        LoxCallable function = (LoxCallable) calle;
+
+        if (arguements.size() != function.arity()) {
+            throw new RuntimeError(expr.paren,
+                    "Expected " + function.arity() + " arguements but got " + arguements.size() + ".");
+        }
+
+        return function.call(this, arguements);
+    }
 
     @Override
     public Void visitWhileStmt(Stmt.While stmt) {

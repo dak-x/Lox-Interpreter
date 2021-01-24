@@ -145,7 +145,38 @@ class Parser {
             Expr right = unary();
             return new Expr.Unary(operator, right);
         }
-        return primary();
+        return call();
+    }
+
+    private Expr call() {
+        Expr expr = primary();
+
+        while (true) {
+            if (match(LEFT_PAREN)) {
+                expr = finishcall(expr);
+            } else {
+                break;
+            }
+        }
+
+        return expr;
+    }
+
+    private Expr finishcall(Expr calle) {
+        List<Expr> arguements = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (arguements.size() >= 255) {
+                    error(peek(), "Can't have more than 255 arguements");
+                }
+
+                arguements.add(expression());
+            } while (match(COMMA));
+        }
+
+        Token paren = consume(RIGHT_PAREN, "Expect ')' after function arguements");
+
+        return new Expr.Call(calle, paren, arguements);
     }
 
     private Expr primary() {
@@ -254,7 +285,7 @@ class Parser {
             condition = new Expr.Literal(true);
         }
 
-        body = new Stmt.While(condition,body);
+        body = new Stmt.While(condition, body);
         if (initializer != null) {
             body = new Stmt.Block(Arrays.asList(initializer, body));
         }
@@ -317,6 +348,8 @@ class Parser {
 
     private Stmt declaration() {
         try {
+            if (match(FUN))
+                return function("function");
             if (match(VAR))
                 return varDeclaration();
             return statement();
@@ -324,6 +357,25 @@ class Parser {
             synchronize();
             return null;
         }
+    }
+
+    private Stmt.Function function(String kind) {
+        Token name = consume(INDENTIFIER, "Expect " + kind + "name.");
+        consume(LEFT_PAREN, "Expect '(' after " + kind + " name.");
+        List<Token> parameters = new ArrayList<Token>();
+        if (!check(RIGHT_PAREN))
+            do {
+                if (parameters.size() >= 255) {
+                    error(peek(), "Can't have more than 255 parameters.");
+                }
+
+                parameters.add(consume(INDENTIFIER, "Expect parameter name."));
+
+            } while (match(COMMA));
+        consume(RIGHT_PAREN, "Expect ')' after parameters");
+        consume(LEFT_BRACE, "Expect '{' before " + kind + " body.");
+        List<Stmt> body = block();
+        return new Stmt.Function(name, parameters, body);
     }
 
     private Stmt varDeclaration() {
